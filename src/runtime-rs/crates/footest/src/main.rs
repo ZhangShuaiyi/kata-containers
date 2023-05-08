@@ -121,6 +121,8 @@ fn main() {
     info!("{:?}", vmm_thread);
 
     let vm_config = VmConfigInfo {
+        // connect console
+        // socat - UNIX-CONNECT:/tmp/console.sock
         serial_path: Some(String::from("/tmp/console.sock")),
         mem_size_mib: 512,
         vcpu_count: 1,
