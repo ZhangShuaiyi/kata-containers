@@ -204,6 +204,7 @@ impl RuntimeHandlerManager {
 
     pub async fn handler_message(&self, req: Request) -> Result<Response> {
         if let Request::CreateContainer(container_config) = req {
+            info!(sl!(), "====handler_message CreateContainer");
             // get oci spec
             let bundler_path = format!(
                 "{}/{}",

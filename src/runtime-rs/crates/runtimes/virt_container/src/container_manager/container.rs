@@ -86,6 +86,7 @@ impl Container {
         let sandbox_pidns = is_pid_namespace_enabled(&spec);
         amend_spec(&mut spec, toml_config.runtime.disable_guest_seccomp).context("amend spec")?;
 
+        info!(sl!(), "====Container create enter");
         // get mutable root from oci spec
         let mut root = match spec.root.as_mut() {
             Some(root) => root,
@@ -158,6 +159,7 @@ impl Container {
             ..Default::default()
         };
 
+        info!(sl!(), "====Container create send agent");
         self.agent
             .create_container(r)
             .await

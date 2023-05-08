@@ -55,6 +55,7 @@ impl VirtContainerManager {
 #[async_trait]
 impl ContainerManager for VirtContainerManager {
     async fn create_container(&self, config: ContainerConfig, spec: oci::Spec) -> Result<PID> {
+        info!(sl!(), "====create_container");
         let container = Container::new(
             self.pid,
             config,

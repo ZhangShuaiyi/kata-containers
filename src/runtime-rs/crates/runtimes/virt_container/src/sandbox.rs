@@ -126,6 +126,7 @@ impl Sandbox for VirtSandbox {
     async fn start(&self, netns: Option<String>) -> Result<()> {
         let id = &self.sid;
 
+        info!(sl!(), "====VirtSandbox start enter");
         // if sandbox running, return
         // if sandbox not running try to start sandbox
         let mut inner = self.inner.write().await;
@@ -134,6 +135,7 @@ impl Sandbox for VirtSandbox {
             return Ok(());
         }
 
+        info!(sl!(), "====VirtSandbox start create vm");
         self.hypervisor
             .prepare_vm(id, netns.clone())
             .await
