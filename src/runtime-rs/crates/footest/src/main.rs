@@ -21,50 +21,10 @@ use slog::Drain;
 const KVM_DEVICE: &str = "/dev/kvm";
 const DRAGONBALL_VERSION: &str = "0.1.0";
 
-
-// // A RuntimeLevelFilter will discard all log records whose log level is less than the level
-// // specified in the struct.
-// struct RuntimeLevelFilter<D> {
-//     drain: D,
-//     level: Mutex<slog::Level>,
-// }
-
-// impl<D> RuntimeLevelFilter<D> {
-//     fn new(drain: D, level: slog::Level) -> Self {
-//         RuntimeLevelFilter {
-//             drain,
-//             level: Mutex::new(level),
-//         }
-//     }
-// }
-
-// impl<D> Drain for RuntimeLevelFilter<D>
-// where
-//     D: Drain,
-// {
-//     type Ok = Option<D::Ok>;
-//     type Err = Option<D::Err>;
-
-//     fn log(
-//         &self,
-//         record: &slog::Record,
-//         values: &slog::OwnedKVList,
-//     ) -> Result<Self::Ok, Self::Err> {
-//         let log_level = self.level.lock().unwrap();
-
-//         if record.level().is_at_least(*log_level) {
-//             self.drain.log(record, values)?;
-//         }
-
-//         Ok(None)
-//     }
-// }
-
 fn main() {
     env_logger::init();
     let decorator = slog_term::TermDecorator::new().build();
     let drain = slog_term::CompactFormat::new(decorator).build().fuse();
-    // let drain = RuntimeLevelFilter::new(drain, slog::Level::Debug).fuse();
     let drain = slog_async::Async::new(drain).build().fuse();
 
     let log = slog::Logger::root(drain, slog::o!());
@@ -151,7 +111,7 @@ fn main() {
     };
     let action = VmmAction::ConfigureBootSource(config);
     handle_request(&to_vmm, &from_vmm, &to_vmm_fd, action);
- 
+
     handle_request(
         &to_vmm,
         &from_vmm,
