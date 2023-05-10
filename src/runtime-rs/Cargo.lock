@@ -946,6 +946,7 @@ name = "footest"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "dbs-utils",
  "dragonball",
  "env_logger",
  "libc",

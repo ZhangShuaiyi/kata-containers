@@ -10,8 +10,9 @@ use log::info;
 
 use vmm_sys_util::eventfd::EventFd;
 
+use dbs_utils::net::MacAddr;
 use dragonball::api::v1::{
-    BootSourceConfig, InstanceInfo, VmmAction, VmmRequest, VmmResponse, VmmService,
+    BootSourceConfig, InstanceInfo, VmmAction, VmmRequest, VmmResponse, VmmService, VirtioNetDeviceConfigInfo,
 };
 use dragonball::vm::VmConfigInfo;
 use dragonball::Vmm;
@@ -81,9 +82,9 @@ fn main() {
     info!("{:?}", vmm_thread);
 
     let vm_config = VmConfigInfo {
-        // connect console
+        // connect unix socket console
         // socat - UNIX-CONNECT:/tmp/console.sock
-        // serial_path: Some(String::from("/tmp/console.sock")),
+        serial_path: Some(String::from("/tmp/console.sock")),
         mem_size_mib: 512,
         vcpu_count: 1,
         max_vcpu_count: 1,
@@ -110,6 +111,15 @@ fn main() {
         boot_args: Some(String::from("console=ttyS0 reboot=k panic=1 pci=off")),
     };
     let action = VmmAction::ConfigureBootSource(config);
+    handle_request(&to_vmm, &from_vmm, &to_vmm_fd, action);
+
+    let iface_cfg = VirtioNetDeviceConfigInfo {
+        iface_id: String::from("eth10"),
+        host_dev_name: String::from("tap10_kata"),
+        guest_mac: MacAddr::from_bytes(&[0xfa, 0xa5, 0xba, 0x70, 0x69, 0x60]).ok(),
+        ..Default::default()
+    };
+    let action = VmmAction::InsertNetworkDevice(iface_cfg);
     handle_request(&to_vmm, &from_vmm, &to_vmm_fd, action);
 
     handle_request(
