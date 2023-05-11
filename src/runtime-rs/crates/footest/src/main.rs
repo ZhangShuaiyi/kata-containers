@@ -83,7 +83,7 @@ fn main() {
 
     let vm_config = VmConfigInfo {
         // connect unix socket console
-        // socat - UNIX-CONNECT:/tmp/console.sock
+        // socat "stdin,raw,echo=0,escape=0x1b" UNIX-CONNECT:/tmp/console.sock
         serial_path: Some(String::from("/tmp/console.sock")),
         mem_size_mib: 512,
         vcpu_count: 1,
@@ -95,18 +95,10 @@ fn main() {
     info!("{:?}", vm_config);
 
     let action = VmmAction::SetVmConfiguration(vm_config);
-    // match send_request(&to_vmm, &from_vmm, &to_vmm_fd, action) {
-    //     Ok(vmm_outcome) => match *vmm_outcome {
-    //         Ok(vmm_data) => Ok(vmm_data),
-    //         Err(vmm_action_error) => Err(anyhow!("vmm action error: {:?}", vmm_action_error)),
-    //     },
-    //     Err(e) => Err(e),
-    // }
-    // .unwrap();
     handle_request(&to_vmm, &from_vmm, &to_vmm_fd, action);
 
     let config = BootSourceConfig {
-        kernel_path: String::from("/opt/kata/share/kata-containers/vmlinux-5.19.2-96"),
+        kernel_path: String::from("/opt/kata/share/kata-containers/vmlinux-dragonball-experimental.container"),
         initrd_path: Some(String::from("/root/datas/centos-no-kernel-initramfs.img")),
         boot_args: Some(String::from("console=ttyS0 reboot=k panic=1 pci=off")),
     };
