@@ -12,7 +12,8 @@ use vmm_sys_util::eventfd::EventFd;
 
 use dbs_utils::net::MacAddr;
 use dragonball::api::v1::{
-    BootSourceConfig, InstanceInfo, VmmAction, VmmRequest, VmmResponse, VmmService, VirtioNetDeviceConfigInfo,
+    BootSourceConfig, FsDeviceConfigInfo, FsMountConfigInfo, InstanceInfo,
+    VirtioNetDeviceConfigInfo, VmmAction, VmmRequest, VmmResponse, VmmService,
 };
 use dragonball::vm::VmConfigInfo;
 use dragonball::Vmm;
@@ -98,7 +99,9 @@ fn main() {
     handle_request(&to_vmm, &from_vmm, &to_vmm_fd, action);
 
     let config = BootSourceConfig {
-        kernel_path: String::from("/opt/kata/share/kata-containers/vmlinux-dragonball-experimental.container"),
+        kernel_path: String::from(
+            "/opt/kata/share/kata-containers/vmlinux-dragonball-experimental.container",
+        ),
         initrd_path: Some(String::from("/root/datas/centos-no-kernel-initramfs.img")),
         boot_args: Some(String::from("console=ttyS0 reboot=k panic=1 pci=off")),
     };
@@ -114,6 +117,25 @@ fn main() {
     let action = VmmAction::InsertNetworkDevice(iface_cfg);
     handle_request(&to_vmm, &from_vmm, &to_vmm_fd, action);
 
+    // In guest mount command
+    // mkdir -p /mnt && mount -t virtiofs testShare /mnt
+    let fs_cfg = FsDeviceConfigInfo {
+        sock_path: String::from("/tmp/virtiofsd.sock"),
+        tag: String::from("testShare"),
+        num_queues: 1 as usize,
+        queue_size: 1024 as u16,
+        cache_size: 0 as u64,
+        xattr: true,
+        mode: String::from("virtio"),
+        cache_policy: String::from("auto"),
+        fuse_killpriv_v2: true,
+        thread_pool_size: 1,
+        ..Default::default()
+    };
+    let action = VmmAction::InsertFsDevice(fs_cfg);
+    handle_request(&to_vmm, &from_vmm, &to_vmm_fd, action);
+
+    handle_request(&to_vmm, &from_vmm, &to_vmm_fd, VmmAction::StartMicroVm);
     handle_request(
         &to_vmm,
         &from_vmm,
@@ -121,7 +143,19 @@ fn main() {
         VmmAction::GetVmConfiguration,
     );
 
-    handle_request(&to_vmm, &from_vmm, &to_vmm_fd, VmmAction::StartMicroVm);
+    // reference setup_inline_virtiofs, called in setup_device_after_start_vm.
+    let mount_cfg = FsMountConfigInfo {
+        ops: "mount".to_string(),
+        fstype: Some("passthroughfs".to_string()),
+        source: Some("/root/traces/kata-3.0".to_string()),
+        mountpoint: "/passthrough".to_string(),
+        config: None,
+        tag: "testShare".to_string(),
+        prefetch_list_path: None,
+        dax_threshold_size_kb: None,
+    };
+    let action = VmmAction::ManipulateFsBackendFs(mount_cfg);
+    handle_request(&to_vmm, &from_vmm, &to_vmm_fd, action);
 
     vmm_thread.join().unwrap();
 }
