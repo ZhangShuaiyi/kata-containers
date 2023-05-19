@@ -12,8 +12,9 @@ use vmm_sys_util::eventfd::EventFd;
 
 use dbs_utils::net::MacAddr;
 use dragonball::api::v1::{
-    BootSourceConfig, FsDeviceConfigInfo, FsMountConfigInfo, InstanceInfo,
+    BootSourceConfig, FsDeviceConfigInfo, FsMountConfigInfo, InstanceInfo, VcpuResizeInfo,
     VirtioNetDeviceConfigInfo, VmmAction, VmmRequest, VmmResponse, VmmService,
+    VsockDeviceConfigInfo,
 };
 use dragonball::vm::VmConfigInfo;
 use dragonball::Vmm;
@@ -24,6 +25,7 @@ const KVM_DEVICE: &str = "/dev/kvm";
 const DRAGONBALL_VERSION: &str = "0.1.0";
 
 fn main() {
+    // RUST_LOG=debug ./target/debug/footest
     env_logger::init();
     let decorator = slog_term::TermDecorator::new().build();
     let drain = slog_term::CompactFormat::new(decorator).build().fuse();
@@ -88,7 +90,7 @@ fn main() {
         serial_path: Some(String::from("/tmp/console.sock")),
         mem_size_mib: 512,
         vcpu_count: 1,
-        max_vcpu_count: 1,
+        max_vcpu_count: 4,
         mem_type: String::from("shmem"),
         mem_file_path: String::from(""),
         ..Default::default()
@@ -103,7 +105,9 @@ fn main() {
             "/opt/kata/share/kata-containers/vmlinux-dragonball-experimental.container",
         ),
         initrd_path: Some(String::from("/root/datas/centos-no-kernel-initramfs.img")),
-        boot_args: Some(String::from("console=ttyS0 reboot=k panic=1 pci=off")),
+        boot_args: Some(String::from(
+            "console=ttyS0 reboot=k earlyprintk=ttyS0 initcall_debug panic=1 pci=off apic=debug",
+        )),
     };
     let action = VmmAction::ConfigureBootSource(config);
     handle_request(&to_vmm, &from_vmm, &to_vmm_fd, action);
@@ -112,6 +116,7 @@ fn main() {
         iface_id: String::from("eth10"),
         host_dev_name: String::from("tap10_kata"),
         guest_mac: MacAddr::from_bytes(&[0xfa, 0xa5, 0xba, 0x70, 0x69, 0x60]).ok(),
+        use_shared_irq: Some(false),
         ..Default::default()
     };
     let action = VmmAction::InsertNetworkDevice(iface_cfg);
@@ -130,9 +135,19 @@ fn main() {
         cache_policy: String::from("auto"),
         fuse_killpriv_v2: true,
         thread_pool_size: 1,
+        use_shared_irq: Some(false),
         ..Default::default()
     };
     let action = VmmAction::InsertFsDevice(fs_cfg);
+    handle_request(&to_vmm, &from_vmm, &to_vmm_fd, action);
+
+    let vsock_cfg = VsockDeviceConfigInfo {
+        id: String::from("root"),
+        guest_cid: 3,
+        uds_path: Some(String::from("/tmp/hvsock.sock")),
+        ..Default::default()
+    };
+    let action = VmmAction::InsertVsockDevice(vsock_cfg);
     handle_request(&to_vmm, &from_vmm, &to_vmm_fd, action);
 
     handle_request(&to_vmm, &from_vmm, &to_vmm_fd, VmmAction::StartMicroVm);
@@ -157,6 +172,12 @@ fn main() {
     let action = VmmAction::ManipulateFsBackendFs(mount_cfg);
     handle_request(&to_vmm, &from_vmm, &to_vmm_fd, action);
 
+    thread::sleep(std::time::Duration::from_secs(60));
+    let resize_cfg = VcpuResizeInfo {
+        vcpu_count: Some(2),
+    };
+    let action = VmmAction::ResizeVcpu(resize_cfg);
+    handle_request(&to_vmm, &from_vmm, &to_vmm_fd, action);
     vmm_thread.join().unwrap();
 }
 
